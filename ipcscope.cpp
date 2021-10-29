@@ -65,8 +65,10 @@ IPCScope::IPCScope(QWidget *parent, ScopeType scopeType) :
         mAxesList.append(axisY);
         axisX->setLabelFormat("%.0e");
         axisX->setBase(10.0);
+        axisX->setMinorTickCount(-1);
         axisY->setLabelFormat("%.0e");
         axisY->setBase(10.0);
+        axisY->setMinorTickCount(-1);
     }
     foreach(QAbstractAxis *axis, mAxesList){
         axis->setLabelsFont(mBaseFont);
@@ -375,7 +377,7 @@ void IPCScope::mouseDoubleClickEvent(QMouseEvent *event)
 {
     if(mChart){
         setZoomRange(mZoomRangeX.min(), mZoomRangeY.max(), mZoomRangeX.max(), mZoomRangeY.min());
-        cosmeticTicksInterval();
+//        cosmeticTicksInterval();
     }
     QGraphicsView::mouseDoubleClickEvent(event);
 }
@@ -824,8 +826,30 @@ void IPCScope::setZoomRange(qreal xp1, qreal yp1, qreal xp2, qreal yp2)
     mZoomRangeY.setMax(yp1);
     QAbstractAxis *xAxis = mAxesList.at(0);
     QAbstractAxis *yAxis = mAxesList.at(1);
+    /* Before setting the range, we need to update the tick interval first
+     * to limit the excessive number of ticks
+    */
+    if(mScopeType == stpSemiLogX){
+        QValueAxis *axis = static_cast<QValueAxis *>(yAxis);
+        axis->setTickInterval(mZoomRangeY.max() - mZoomRangeY.min());
+    } else if(mScopeType == stpSemiLogY){
+        QValueAxis *axis = static_cast<QValueAxis *>(xAxis);
+        axis->setTickInterval(mZoomRangeX.max() - mZoomRangeX.min());
+    } else if (mScopeType == stpLinear){
+        QValueAxis *xaxis = static_cast<QValueAxis *>(xAxis);
+        QValueAxis *yaxis = static_cast<QValueAxis *>(yAxis);
+        xaxis->setTickInterval(mZoomRangeX.max() - mZoomRangeX.min());
+        yaxis->setTickInterval(mZoomRangeY.max() - mZoomRangeY.min());
+    }
+
     xAxis->setRange(xp1, xp2);
-    yAxis->setRange(yp2, yp1);    
+    yAxis->setRange(yp2, yp1);
+
+    /*
+     * Reupdate the tick for cosmetic look
+    */
+    cosmeticTicksInterval();
+
     foreach(IPCMarker *marker, mMarkerList){
         marker->updatePosition();
     }
@@ -848,6 +872,11 @@ void IPCScope::setZoomRange(QPointF topLeft, QPointF bottomRight)
     QAbstractAxis *yAxis = mAxesList.at(1);
     xAxis->setRange(topLeft.x(), bottomRight.x());
     yAxis->setRange(bottomRight.y(), topLeft.y());
+    /*
+     * Reupdate the tick for cosmetic look
+    */
+    cosmeticTicksInterval();
+
     foreach(IPCMarker *marker, mMarkerList){
         marker->updatePosition();
     }
@@ -868,6 +897,11 @@ void IPCScope::setZoomRange(QRectF boundingRect)
     QAbstractAxis *yAxis = mAxesList.at(1);
     xAxis->setRange(boundingRect.left(), boundingRect.right());
     yAxis->setRange(boundingRect.top(), boundingRect.bottom());
+    /*
+     * Reupdate the tick for cosmetic look
+    */
+    cosmeticTicksInterval();
+
     foreach(IPCMarker *marker, mMarkerList){
         marker->updatePosition();
     }
